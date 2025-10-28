@@ -1,8 +1,9 @@
 # Multi-stage build for production SMTP Bridge
-FROM python:3.11-slim AS builder
+FROM python:3.11-alpine AS builder
 
-# Install uv
-RUN pip install uv
+# Install build dependencies and uv
+RUN apk add --no-cache gcc musl-dev libffi-dev && \
+    pip install --no-cache-dir uv
 
 # Set working directory
 WORKDIR /app
@@ -14,15 +15,13 @@ COPY pyproject.toml uv.lock .python-version ./
 RUN uv sync --frozen --no-dev
 
 # Production stage
-FROM python:3.11-slim
+FROM python:3.11-alpine
 
-# Install curl for health checks
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
+# Install runtime dependencies
+RUN apk add --no-cache curl
 
 # Create non-root user
-RUN useradd -m -u 1000 appuser
+RUN adduser -D -u 1000 appuser
 
 # Set working directory
 WORKDIR /app
