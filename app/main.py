@@ -2,7 +2,9 @@
 Main FastAPI application
 """
 import logging
+import os
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -21,6 +23,10 @@ logging.basicConfig(
 )
 
 if settings.log_file:
+    # Create log directory if it doesn't exist
+    log_path = Path(settings.log_file)
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+
     file_handler = logging.FileHandler(settings.log_file)
     file_handler.setFormatter(
         logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
