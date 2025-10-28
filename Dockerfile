@@ -8,7 +8,7 @@ RUN pip install uv
 WORKDIR /app
 
 # Copy dependency files
-COPY pyproject.toml .python-version ./
+COPY pyproject.toml uv.lock .python-version ./
 
 # Install dependencies using uv
 RUN uv sync --frozen --no-dev
