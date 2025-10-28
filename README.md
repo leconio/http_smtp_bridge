@@ -580,22 +580,6 @@ python3 test_smtp_bridge.py
 
 ### Common SMTP Configurations
 
-#### Gmail
-```env
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
-SMTP_USE_TLS=true
-SMTP_USERNAME=your_email@gmail.com
-SMTP_PASSWORD=your_app_password
-```
-
-#### Outlook/Office 365
-```env
-SMTP_HOST=smtp-mail.outlook.com
-SMTP_PORT=587
-SMTP_USE_TLS=true
-```
-
 #### Local Postfix/Sendmail
 ```env
 SMTP_HOST=localhost
