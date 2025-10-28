@@ -1,5 +1,5 @@
 # Multi-stage build for production SMTP Bridge
-FROM python:3.11-slim as builder
+FROM python:3.11-slim AS builder
 
 # Install uv
 RUN pip install uv
@@ -27,8 +27,7 @@ RUN useradd -m -u 1000 appuser
 # Set working directory
 WORKDIR /app
 
-# Copy uv and dependencies from builder
-COPY --from=builder /root/.local /root/.local
+# Copy virtual environment from builder
 COPY --from=builder /app/.venv /app/.venv
 
 # Copy application code
