@@ -81,7 +81,7 @@ profile_default/
 ipython_config.py
 
 # pyenv
-.python-version
+# .python-version - keeping this file as it's needed for uv and Docker builds
 
 # pipenv
 Pipfile.lock
