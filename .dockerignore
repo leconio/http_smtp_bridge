@@ -62,5 +62,5 @@ Thumbs.db
 deploy.sh
 run.sh
 
-# UV lock file (already synced in builder stage)
-uv.lock
+# UV lock file - NEEDED for uv sync --frozen in Dockerfile
+# uv.lock
