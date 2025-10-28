@@ -3,8 +3,7 @@ version: '3.8'
 services:
   smtp_bridge:
     # Use the pre-built image from GitHub Container Registry
-    # Replace YOUR_USERNAME with your GitHub username
-    image: ghcr.io/YOUR_USERNAME/smtp_bridge:latest
+    image: ghcr.io/leconio/http_smtp_bridge:latest
 
     # Or build from source
     # build:
@@ -13,30 +12,46 @@ services:
 
     container_name: smtp_bridge
 
-    ports:
-      - "8000:8000"
+    # Choose one network mode:
+    # 1. Use host network to access localhost SMTP (recommended for local SMTP)
+    network_mode: host
+
+    # 2. Or use bridge network with port mapping (uncomment below, comment network_mode above)
+    # ports:
+    #   - "8000:8000"
+    # extra_hosts:
+    #   - "host.docker.internal:host-gateway"
+    # networks:
+    #   - smtp_bridge_network
 
     environment:
       # SMTP Configuration
-      - SMTP_HOST=${SMTP_HOST:-smtp.example.com}
-      - SMTP_PORT=${SMTP_PORT:-587}
+      # For host network mode, use localhost
+      - SMTP_HOST=${SMTP_HOST:-localhost}
+      # For bridge network mode, use host.docker.internal
+      # - SMTP_HOST=${SMTP_HOST:-host.docker.internal}
+      - SMTP_PORT=${SMTP_PORT:-25}
       - SMTP_USERNAME=${SMTP_USERNAME:-}
       - SMTP_PASSWORD=${SMTP_PASSWORD:-}
-      - SMTP_USE_TLS=${SMTP_USE_TLS:-true}
+      - SMTP_USE_TLS=${SMTP_USE_TLS:-false}
+      - SMTP_TIMEOUT=${SMTP_TIMEOUT:-30}
 
       # API Configuration
       - API_KEY=${API_KEY:-}
-      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-*}
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-["*"]}
 
       # Rate Limiting
-      - RATE_LIMIT_PER_MINUTE=${RATE_LIMIT_PER_MINUTE:-60}
+      - RATE_LIMIT_ENABLED=${RATE_LIMIT_ENABLED:-true}
+      - RATE_LIMIT_REQUESTS=${RATE_LIMIT_REQUESTS:-100}
+      - RATE_LIMIT_PERIOD=${RATE_LIMIT_PERIOD:-60}
 
       # Logging
-      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - LOG_FILE=${LOG_FILE:-}
 
-    # Optionally use .env file instead of environment variables
-    # env_file:
-    #   - .env
+    # Use .env file for environment variables
+    env_file:
+      - .env
 
     restart: unless-stopped
 
@@ -47,9 +62,7 @@ services:
       retries: 3
       start_period: 5s
 
-    networks:
-      - smtp_bridge_network
-
-networks:
-  smtp_bridge_network:
-    driver: bridge
+# Networks (only needed for bridge mode)
+# networks:
+#   smtp_bridge_network:
+#     driver: bridge
