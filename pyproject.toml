@@ -1,0 +1,15 @@
+[project]
+name = "smtp-bridge"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "aiosmtplib>=5.0.0",
+    "fastapi>=0.120.1",
+    "gunicorn>=23.0.0",
+    "httpx>=0.28.1",
+    "pydantic-settings>=2.11.0",
+    "python-multipart>=0.0.20",
+    "uvicorn>=0.38.0",
+]
