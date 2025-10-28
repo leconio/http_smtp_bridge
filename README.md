@@ -148,15 +148,109 @@ docker run -d \
   smtp_bridge
 ```
 
-## API Usage
+## API Documentation
 
-### Health Check
+### Interactive Documentation
+
+- **Swagger UI**: http://localhost:8000/docs (interactive testing)
+- **ReDoc**: http://localhost:8000/redoc (readable documentation)
+- **OpenAPI JSON**: http://localhost:8000/openapi.json
+
+### API Endpoints
+
+#### 1. Root Endpoint
+
+**GET** `/`
+
+Returns basic service information.
+
+```bash
+curl http://localhost:8000/
+```
+
+**Response**:
+```json
+{
+  "service": "SMTP Bridge",
+  "version": "1.0.0",
+  "status": "running"
+}
+```
+
+#### 2. Health Check
+
+**GET** `/api/v1/health`
+
+Check if the service is healthy. No authentication required.
 
 ```bash
 curl http://localhost:8000/api/v1/health
 ```
 
-### Send Email
+**Response**:
+```json
+{
+  "status": "healthy",
+  "service": "smtp-bridge"
+}
+```
+
+#### 3. Send Email
+
+**POST** `/api/v1/send`
+
+Send an email via SMTP. Requires API key authentication.
+
+**Headers**:
+- `Content-Type: application/json`
+- `X-API-Key: your_api_key` (if API_KEY is configured)
+
+**Request Body**:
+```json
+{
+  "from": "sender@example.com",
+  "from_name": "Sender Name (optional)",
+  "to": ["recipient1@example.com", "recipient2@example.com"],
+  "cc": ["cc@example.com"],  // optional
+  "bcc": ["bcc@example.com"],  // optional
+  "subject": "Email Subject",
+  "text": "Plain text content",  // at least one of text or html required
+  "html": "<p>HTML content</p>",  // at least one of text or html required
+  "reply_to": "reply@example.com",  // optional
+  "headers": {  // optional custom headers
+    "X-Custom-Header": "value"
+  },
+  "attachments": [  // optional
+    {
+      "filename": "document.pdf",
+      "content": "base64_encoded_content",
+      "content_type": "application/pdf"
+    }
+  ]
+}
+```
+
+**Response (Success)**:
+```json
+{
+  "success": true,
+  "message": "Email sent successfully",
+  "message_id": "<unique-message-id@hostname>"
+}
+```
+
+**Response (Error)**:
+```json
+{
+  "detail": "Error message describing what went wrong"
+}
+```
+
+## Testing with curl
+
+### Basic Test Examples
+
+#### 1. Simple Text Email
 
 ```bash
 curl -X POST http://localhost:8000/api/v1/send \
@@ -164,18 +258,305 @@ curl -X POST http://localhost:8000/api/v1/send \
   -H "X-API-Key: your_api_key" \
   -d '{
     "from": "sender@example.com",
-    "from_name": "Sender Name",
     "to": ["recipient@example.com"],
-    "subject": "Test Email",
-    "text": "Plain text content",
-    "html": "<p>HTML content</p>"
+    "subject": "Simple Test",
+    "text": "This is a plain text email."
   }'
 ```
 
-### API Documentation
+#### 2. HTML Email
 
-- **Swagger UI**: http://localhost:8000/docs
-- **ReDoc**: http://localhost:8000/redoc
+```bash
+curl -X POST http://localhost:8000/api/v1/send \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: your_api_key" \
+  -d '{
+    "from": "sender@example.com",
+    "from_name": "John Doe",
+    "to": ["recipient@example.com"],
+    "subject": "HTML Email Test",
+    "html": "<html><body><h1>Hello!</h1><p>This is an <strong>HTML</strong> email.</p></body></html>"
+  }'
+```
+
+#### 3. Email with Text and HTML (Multipart)
+
+```bash
+curl -X POST http://localhost:8000/api/v1/send \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: your_api_key" \
+  -d '{
+    "from": "sender@example.com",
+    "to": ["recipient@example.com"],
+    "subject": "Multipart Email",
+    "text": "This is the plain text version.",
+    "html": "<p>This is the <strong>HTML</strong> version.</p>"
+  }'
+```
+
+#### 4. Email with CC and BCC
+
+```bash
+curl -X POST http://localhost:8000/api/v1/send \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: your_api_key" \
+  -d '{
+    "from": "sender@example.com",
+    "to": ["primary@example.com"],
+    "cc": ["cc1@example.com", "cc2@example.com"],
+    "bcc": ["bcc@example.com"],
+    "subject": "Email with CC and BCC",
+    "text": "This email has CC and BCC recipients."
+  }'
+```
+
+#### 5. Email with Reply-To
+
+```bash
+curl -X POST http://localhost:8000/api/v1/send \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: your_api_key" \
+  -d '{
+    "from": "noreply@example.com",
+    "reply_to": "support@example.com",
+    "to": ["customer@example.com"],
+    "subject": "Support Response",
+    "text": "Please reply to support@example.com for assistance."
+  }'
+```
+
+#### 6. Email with Base64 Attachment
+
+```bash
+# First, encode a file to base64
+BASE64_CONTENT=$(base64 -w 0 document.pdf)
+
+curl -X POST http://localhost:8000/api/v1/send \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: your_api_key" \
+  -d '{
+    "from": "sender@example.com",
+    "to": ["recipient@example.com"],
+    "subject": "Email with Attachment",
+    "text": "Please find the attached document.",
+    "attachments": [
+      {
+        "filename": "document.pdf",
+        "content": "'"$BASE64_CONTENT"'",
+        "content_type": "application/pdf"
+      }
+    ]
+  }'
+```
+
+### Complete Test Script
+
+Save this as `test_smtp_bridge.sh`:
+
+```bash
+#!/bin/bash
+
+# Configuration
+API_KEY="your_api_key"
+BASE_URL="http://localhost:8000"
+FROM_EMAIL="sender@example.com"
+TO_EMAIL="recipient@example.com"
+
+echo "=========================================="
+echo "SMTP Bridge API Test Suite"
+echo "=========================================="
+
+# Test 1: Health Check
+echo -e "\n[1/5] Testing Health Check..."
+RESPONSE=$(curl -s "$BASE_URL/api/v1/health")
+echo "Response: $RESPONSE"
+if echo "$RESPONSE" | grep -q "healthy"; then
+    echo "✅ Health check passed"
+else
+    echo "❌ Health check failed"
+fi
+
+# Test 2: Root Endpoint
+echo -e "\n[2/5] Testing Root Endpoint..."
+RESPONSE=$(curl -s "$BASE_URL/")
+echo "Response: $RESPONSE"
+if echo "$RESPONSE" | grep -q "SMTP Bridge"; then
+    echo "✅ Root endpoint passed"
+else
+    echo "❌ Root endpoint failed"
+fi
+
+# Test 3: Send Plain Text Email
+echo -e "\n[3/5] Testing Plain Text Email..."
+RESPONSE=$(curl -s -X POST "$BASE_URL/api/v1/send" \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: $API_KEY" \
+  -d '{
+    "from": "'"$FROM_EMAIL"'",
+    "to": ["'"$TO_EMAIL"'"],
+    "subject": "Plain Text Test",
+    "text": "This is a plain text test email."
+  }')
+echo "Response: $RESPONSE"
+if echo "$RESPONSE" | grep -q "success"; then
+    echo "✅ Plain text email sent"
+else
+    echo "❌ Plain text email failed"
+fi
+
+# Test 4: Send HTML Email
+echo -e "\n[4/5] Testing HTML Email..."
+RESPONSE=$(curl -s -X POST "$BASE_URL/api/v1/send" \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: $API_KEY" \
+  -d '{
+    "from": "'"$FROM_EMAIL"'",
+    "from_name": "Test Sender",
+    "to": ["'"$TO_EMAIL"'"],
+    "subject": "HTML Test Email",
+    "html": "<h1>Test</h1><p>This is an <strong>HTML</strong> email.</p>"
+  }')
+echo "Response: $RESPONSE"
+if echo "$RESPONSE" | grep -q "success"; then
+    echo "✅ HTML email sent"
+else
+    echo "❌ HTML email failed"
+fi
+
+# Test 5: Test Without API Key (should fail)
+echo -e "\n[5/5] Testing Authentication (no API key)..."
+RESPONSE=$(curl -s -X POST "$BASE_URL/api/v1/send" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "from": "'"$FROM_EMAIL"'",
+    "to": ["'"$TO_EMAIL"'"],
+    "subject": "Test",
+    "text": "This should fail."
+  }')
+echo "Response: $RESPONSE"
+if echo "$RESPONSE" | grep -q "detail"; then
+    echo "✅ Authentication check passed (correctly rejected)"
+else
+    echo "⚠️  Authentication check unexpected result"
+fi
+
+echo -e "\n=========================================="
+echo "Test Suite Complete"
+echo "=========================================="
+```
+
+**Usage**:
+```bash
+# Make it executable
+chmod +x test_smtp_bridge.sh
+
+# Edit the configuration
+nano test_smtp_bridge.sh
+
+# Run the tests
+./test_smtp_bridge.sh
+```
+
+### Python Test Script
+
+Save this as `test_smtp_bridge.py`:
+
+```python
+#!/usr/bin/env python3
+"""
+Test script for SMTP Bridge API
+"""
+import requests
+import sys
+
+BASE_URL = "http://localhost:8000"
+API_KEY = "your_api_key"
+
+def test_health():
+    """Test health check endpoint"""
+    print("\n[1/3] Testing health check...")
+    response = requests.get(f"{BASE_URL}/api/v1/health")
+    print(f"Status: {response.status_code}")
+    print(f"Response: {response.json()}")
+    assert response.status_code == 200
+    assert response.json()["status"] == "healthy"
+    print("✅ Health check passed")
+
+def test_send_email():
+    """Test send email endpoint"""
+    print("\n[2/3] Testing send email...")
+
+    data = {
+        "from": "test@example.com",
+        "from_name": "Test User",
+        "to": ["recipient@example.com"],
+        "subject": "Test Email from Python",
+        "text": "This is a test email sent via Python script.",
+        "html": "<p>This is a <strong>test email</strong> sent via Python script.</p>"
+    }
+
+    headers = {
+        "Content-Type": "application/json",
+        "X-API-Key": API_KEY
+    }
+
+    response = requests.post(f"{BASE_URL}/api/v1/send", json=data, headers=headers)
+    print(f"Status: {response.status_code}")
+    print(f"Response: {response.json()}")
+
+    if response.status_code == 200:
+        print("✅ Email sent successfully")
+    else:
+        print("❌ Email sending failed")
+
+def test_no_auth():
+    """Test authentication requirement"""
+    print("\n[3/3] Testing authentication...")
+
+    data = {
+        "from": "test@example.com",
+        "to": ["recipient@example.com"],
+        "subject": "Test",
+        "text": "Test"
+    }
+
+    response = requests.post(f"{BASE_URL}/api/v1/send", json=data)
+    print(f"Status: {response.status_code}")
+
+    if response.status_code == 403 or response.status_code == 401:
+        print("✅ Authentication check passed")
+    else:
+        print(f"⚠️  Unexpected status: {response.status_code}")
+
+if __name__ == "__main__":
+    print("=" * 50)
+    print("SMTP Bridge API Test Suite (Python)")
+    print("=" * 50)
+
+    try:
+        test_health()
+        test_send_email()
+        test_no_auth()
+
+        print("\n" + "=" * 50)
+        print("All tests completed")
+        print("=" * 50)
+    except Exception as e:
+        print(f"\n❌ Error: {e}")
+        sys.exit(1)
+```
+
+**Usage**:
+```bash
+# Install requests if needed
+pip install requests
+
+# Edit configuration
+nano test_smtp_bridge.py
+
+# Run tests
+python3 test_smtp_bridge.py
+```
 
 ## Configuration
 
