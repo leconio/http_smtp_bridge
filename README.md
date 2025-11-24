@@ -2,7 +2,7 @@
 
 HTTP to SMTP proxy service built with FastAPI, providing a RESTful API for sending emails.
 
-**Current Version**: v1.0.7
+**Current Version**: v1.0.8
 **Docker Image**: `ghcr.io/leconio/http_smtp_bridge:latest`
 **Image Size**: ~85MB (Alpine-based)
 
@@ -17,6 +17,7 @@ HTTP to SMTP proxy service built with FastAPI, providing a RESTful API for sendi
 - ⚡ Production-ready with Gunicorn + Uvicorn workers
 - 🐳 Docker support with Alpine Linux
 - 📊 Comprehensive logging
+- 🖼️ CID inline attachments for HTML emails
 - 🏥 Health check endpoint
 
 ## Requirements
@@ -224,7 +225,8 @@ Send an email via SMTP. Requires API key authentication.
     {
       "filename": "document.pdf",
       "content": "base64_encoded_content",
-      "content_type": "application/pdf"
+      "content_type": "application/pdf",
+      "cid": "image1"  // optional: for inline attachments in HTML (refer with cid:image1)
     }
   ]
 }
@@ -234,7 +236,7 @@ Send an email via SMTP. Requires API key authentication.
 ```json
 {
   "success": true,
-  "message": "Email sent successfully",
+  "message": "Email dispatch started",
   "message_id": "<unique-message-id@hostname>"
 }
 ```
@@ -245,6 +247,8 @@ Send an email via SMTP. Requires API key authentication.
   "detail": "Error message describing what went wrong"
 }
 ```
+
+> Sending is fire-and-forget: the API returns once the SMTP send is scheduled; delivery errors (if any) are logged asynchronously.
 
 ## Testing with curl
 
@@ -344,6 +348,30 @@ curl -X POST http://localhost:8000/api/v1/send \
         "filename": "document.pdf",
         "content": "'"$BASE64_CONTENT"'",
         "content_type": "application/pdf"
+      }
+    ]
+  }'
+```
+
+#### 7. HTML Email with Inline Image (CID)
+
+```bash
+INLINE_IMAGE=$(base64 -w 0 image.png)
+
+curl -X POST http://localhost:8000/api/v1/send \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: your_api_key" \
+  -d '{
+    "from": "sender@example.com",
+    "to": ["recipient@example.com"],
+    "subject": "Inline Image Test",
+    "html": "<p>Here is an inline image:</p><img src=\"cid:inline-img-1\" />",
+    "attachments": [
+      {
+        "filename": "image.png",
+        "content": "'"$INLINE_IMAGE"'",
+        "content_type": "image/png",
+        "cid": "inline-img-1"
       }
     ]
   }'

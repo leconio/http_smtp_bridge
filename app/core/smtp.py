@@ -3,6 +3,7 @@ SMTP client for sending emails
 """
 import logging
 import base64
+import asyncio
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.mime.base import MIMEBase
@@ -27,49 +28,6 @@ class SMTPClient:
         self.password = settings.smtp_password
         self.use_tls = settings.smtp_use_tls
         self.timeout = settings.smtp_timeout
-
-    async def send_email(self, email: EmailRequest) -> tuple[bool, str, Optional[str]]:
-        """
-        Send email via SMTP
-
-        Args:
-            email: Email request data
-
-        Returns:
-            Tuple of (success, message, message_id)
-        """
-        try:
-            # Build MIME message
-            msg = self._build_message(email)
-
-            # Send via SMTP
-            async with aiosmtplib.SMTP(
-                hostname=self.host,
-                port=self.port,
-                timeout=self.timeout,
-                use_tls=self.use_tls
-            ) as smtp:
-                # Login if credentials provided
-                if self.username and self.password:
-                    await smtp.login(self.username, self.password)
-
-                # Send message
-                result = await smtp.send_message(msg)
-
-                # Extract message ID
-                message_id = msg.get("Message-ID")
-
-                logger.info(f"Email sent successfully to {email.to}, message_id: {message_id}")
-                return True, "Email sent successfully", message_id
-
-        except aiosmtplib.SMTPException as e:
-            error_msg = f"SMTP error: {str(e)}"
-            logger.error(error_msg)
-            return False, error_msg, None
-        except Exception as e:
-            error_msg = f"Unexpected error: {str(e)}"
-            logger.error(error_msg, exc_info=True)
-            return False, error_msg, None
 
     def _build_message(self, email: EmailRequest) -> MIMEMultipart:
         """Build MIME message from email request"""
@@ -137,16 +95,49 @@ class SMTPClient:
             encoders.encode_base64(part)
 
             # Add header
-            part.add_header(
-                "Content-Disposition",
-                f"attachment; filename={attachment.filename}"
-            )
+            disposition = "inline" if getattr(attachment, "cid", None) else "attachment"
+            part.add_header("Content-Disposition", f"{disposition}; filename={attachment.filename}")
+            if getattr(attachment, "cid", None):
+                part.add_header("Content-ID", f"<{attachment.cid}>")
 
             msg.attach(part)
 
         except Exception as e:
             logger.error(f"Failed to add attachment {attachment.filename}: {e}")
             raise
+
+
+    async def _send_async(self, msg: MIMEMultipart, recipient: list[str]) -> None:
+        """Send email in background and log failures."""
+        try:
+            async with aiosmtplib.SMTP(
+                hostname=self.host,
+                port=self.port,
+                timeout=self.timeout,
+                use_tls=self.use_tls
+            ) as smtp:
+                if self.username and self.password:
+                    await smtp.login(self.username, self.password)
+                await smtp.send_message(msg)
+                logger.info("Email dispatched to %s", recipient)
+        except Exception:
+            logger.exception("Background send failed for %s", recipient)
+
+
+    async def send_email(self, email: EmailRequest) -> tuple[bool, str, Optional[str]]:
+        """
+        Fire-and-forget sending: schedule SMTP send and return immediately.
+
+        Success means the send task was scheduled without raising.
+        """
+        try:
+            msg = self._build_message(email)
+            asyncio.create_task(self._send_async(msg, email.to))
+            return True, "Email dispatch started", msg.get("Message-ID")
+        except Exception as e:
+            error_msg = f"Failed to start email dispatch: {str(e)}"
+            logger.error(error_msg, exc_info=True)
+            return False, error_msg, None
 
 
 # Global SMTP client instance

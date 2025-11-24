@@ -10,6 +10,7 @@ class EmailAttachment(BaseModel):
     filename: str = Field(..., description="Attachment filename")
     content: str = Field(..., description="Base64 encoded attachment content")
     content_type: str = Field(default="application/octet-stream", description="MIME type")
+    cid: Optional[str] = Field(None, description="Content-ID for inline attachments (without angle brackets)")
 
 
 class EmailRequest(BaseModel):
